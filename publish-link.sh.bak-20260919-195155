@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+#
+# Keeps a fixed web address pointing at wherever the portal is today.
+#
+# The Pi's address on the institute network is handed out by DHCP and has moved
+# more than once in a day, and the campus WiFi does not carry mDNS, so a link
+# such as http://172.16.5.127:4010 goes stale and aditya.local never resolves.
+# This script, run by a systemd timer every couple of minutes, reads the address
+# the Pi actually has, and when it differs from the one last published rewrites
+# a small redirect page and pushes it to a GitHub Pages repository. The page's
+# address never changes; what it redirects to does.
+#
+# Runs as the portal's own user, in the clone that install-live-link.sh made,
+# with a deploy key that can write to that one repository and nothing else. It
+# does nothing at all while the address is unchanged, so an idle Pi makes no
+# commits.
+
+set -euo pipefail
+
+REPO_DIR="${1:-$HOME/apps/flp-live}"
+PORTAL_PORT=4010
+
+cd "$REPO_DIR"
+
+# The address the default route leaves from, which is the one other machines on
+# the campus network can reach. Reading a named interface would break the day
+# the WiFi adapter is renamed or the Pi is cabled instead.
+ADDRESS="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) if ($i == "src") print $(i + 1) }' | head -n 1)"
+if [ -z "$ADDRESS" ]; then
+  echo "no route to the network yet; nothing to publish" >&2
+  exit 0
+fi
+
+PUBLISHED="$(cat .address 2>/dev/null || true)"
+if [ "$ADDRESS" = "$PUBLISHED" ]; then
+  exit 0
+fi
+
+# The self-signed TLS cert is bound to the address; regenerate it and reload the
+# proxy whenever the address changes so https keeps matching the current IP.
+sudo /usr/local/sbin/flp-selfsigned-cert.sh >/dev/null 2>&1 || true
+sudo systemctl reload nginx >/dev/null 2>&1 || true
+
+# One page per port. The register and the three directions share the address
+# and differ only in the port, so a visitor can bookmark the one they use. The
+# directions answer to a number as well as a name, because /1 is what gets
+# typed on a phone.
+write_page() {
+  local dir="$1" port="$2" title="$3"
+  local target="https://${ADDRESS}:${port}/"
+  mkdir -p "$dir"
+  cat > "$dir/index.html" <<PAGE
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=${target}">
+<title>${title}</title>
+<style>
+  body { margin: 0; padding: 2rem 1.5rem; font: 16px/1.5 "IBM Plex Sans", system-ui, sans-serif; color: #1f2937; background: #f7f7f5; }
+  main { max-width: 36rem; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+  p { margin: 0.5rem 0; }
+  a { color: #0b3d91; }
+  small { color: #6b7280; }
+</style>
+</head>
+<body>
+<main>
+  <h1>${title}</h1>
+  <p>Taking you to <a href="${target}">${target}</a>.</p>
+  <p><small>The portal runs on the institute network; the link works from the campus WiFi only. Address published $(date -u +"%Y-%m-%d %H:%M UTC").</small></p>
+</main>
+<script>window.location.replace(${target@Q});</script>
+</body>
+</html>
+PAGE
+}
+
+# The front page does not redirect. It lists the four interfaces with their
+# addresses, so a visitor can open the one they want and compare the others,
+# and it remembers the last one opened (in the browser, nowhere else) so the
+# next visit leads with it.
+write_index() {
+  local published
+  published="$(date -u +"%Y-%m-%d %H:%M UTC")"
+  cat > index.html <<PAGE
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Faculty Leave Portal, IIT Mandi</title>
+<style>
+  :root { --navy: #0b2a4a; --ink: #1f2937; --slate: #5b6573; --line: #d9dde3; --paper: #f7f7f5; --link: #0b3d91; }
+  body { margin: 0; font: 16px/1.5 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+  header { background: var(--navy); color: #fff; padding: 1.25rem 1.5rem; border-bottom: 3px solid #e07a1f; }
+  header .inst { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
+  header h1 { font-size: 1.25rem; margin: 0.15rem 0 0; font-weight: 600; }
+  main { max-width: 40rem; margin: 0 auto; padding: 1.5rem 1.5rem 2.5rem; }
+  p { margin: 0.5rem 0; }
+  .lead { color: var(--slate); }
+  .continue { display: none; margin: 1rem 0 1.5rem; padding: 1rem; border: 1px solid var(--line); background: #fff; }
+  .continue[data-on] { display: block; }
+  .continue a.button { display: inline-block; margin-top: 0.5rem; padding: 0.6rem 1rem; background: var(--navy); color: #fff; text-decoration: none; font-weight: 600; }
+  ol { list-style: none; padding: 0; margin: 1rem 0 0; }
+  li { border: 1px solid var(--line); background: #fff; padding: 0.9rem 1rem; margin: 0 0 0.6rem; }
+  li a.name { font-weight: 600; color: var(--link); text-decoration: none; font-size: 1.05rem; }
+  li a.name:hover { text-decoration: underline; }
+  li .what { display: block; color: var(--slate); font-size: 0.9rem; }
+  li code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.85rem; color: var(--ink); }
+  small { color: var(--slate); }
+</style>
+</head>
+<body>
+<header>
+  <div class="inst">Indian Institute of Technology Mandi</div>
+  <h1>Faculty Leave Portal</h1>
+</header>
+<main>
+  <p class="lead">One portal, four interfaces, all on the same records and the same rules. Open the one you use; the address below follows the Pi wherever the network puts it.</p>
+
+  <div class="continue" id="continue">
+    <div>Last time you opened <strong id="continue-name"></strong>.</div>
+    <a class="button" id="continue-link" href="#">Open it again</a>
+  </div>
+
+  <ol id="list">
+    <li data-key="register"><a class="name" href="https://${ADDRESS}:4010/">The Register</a><span class="what">The interface as designed. Port 4010.</span><code>https://${ADDRESS}:4010/</code></li>
+    <li data-key="year"><a class="name" href="https://${ADDRESS}:4011/">1 &middot; The Year in View</a><span class="what">The year as a strip, the balances as a ledger. Port 4011.</span><code>https://${ADDRESS}:4011/</code></li>
+    <li data-key="kamand"><a class="name" href="https://${ADDRESS}:4012/">2 &middot; Kamand</a><span class="what">Solid bands and the campus palette. Port 4012.</span><code>https://${ADDRESS}:4012/</code></li>
+    <li data-key="docket"><a class="name" href="https://${ADDRESS}:4013/">3 &middot; The Docket</a><span class="what">Paper, rules and an ink sign-in panel. Port 4013.</span><code>https://${ADDRESS}:4013/</code></li>
+  </ol>
+
+  <p><small>Works from the institute network only. Address published ${published}. Direct links: /register/, /1/, /2/, /3/.</small></p>
+</main>
+<script>
+(function () {
+  var KEY = 'flp.lastOpened';
+  var list = document.getElementById('list');
+  var items = list.querySelectorAll('li');
+  function remember(key) { try { localStorage.setItem(KEY, key); } catch (e) {} }
+  function recall() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  for (var i = 0; i < items.length; i++) {
+    (function (item) {
+      item.querySelector('a.name').addEventListener('click', function () { remember(item.getAttribute('data-key')); });
+    })(items[i]);
+  }
+  var last = recall();
+  if (!last) return;
+  for (var j = 0; j < items.length; j++) {
+    if (items[j].getAttribute('data-key') !== last) continue;
+    var link = items[j].querySelector('a.name');
+    document.getElementById('continue-name').textContent = link.textContent;
+    var button = document.getElementById('continue-link');
+    button.href = link.href;
+    button.addEventListener('click', function () { remember(last); });
+    document.getElementById('continue').setAttribute('data-on', '');
+  }
+})();
+</script>
+</body>
+</html>
+PAGE
+}
+
+write_index
+write_page "register" "$PORTAL_PORT" "Faculty Leave Portal, the Register"
+write_page "1"      4011           "Faculty Leave Portal, the Year in View"
+write_page "2"      4012           "Faculty Leave Portal, Kamand"
+write_page "3"      4013           "Faculty Leave Portal, the Docket"
+write_page "year"   4011           "Faculty Leave Portal, the Year in View"
+write_page "kamand" 4012           "Faculty Leave Portal, Kamand"
+write_page "docket" 4013           "Faculty Leave Portal, the Docket"
+
+# Pages is told not to run Jekyll, which would otherwise ignore nothing here
+# but adds a build step for no gain.
+touch .nojekyll
+printf '%s\n' "$ADDRESS" > .address
+
+git add -A
+if git diff --cached --quiet; then
+  exit 0
+fi
+git -c user.name="Faculty Leave Portal (Pi)" -c user.email="flp-pi@iitmandi.ac.in" \
+  commit -q -m "Portal is at ${ADDRESS}"
+git push -q origin HEAD
+echo "published ${ADDRESS}"

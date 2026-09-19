@@ -4,74 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=https://172.16.5.127:4011/">
 <title>Faculty Leave Portal, IIT Mandi</title>
 <style>
-  :root { --navy: #0b2a4a; --ink: #1f2937; --slate: #5b6573; --line: #d9dde3; --paper: #f7f7f5; --link: #0b3d91; }
-  body { margin: 0; font: 16px/1.5 "IBM Plex Sans", system-ui, sans-serif; color: var(--ink); background: var(--paper); }
-  header { background: var(--navy); color: #fff; padding: 1.25rem 1.5rem; border-bottom: 3px solid #e07a1f; }
-  header .inst { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
-  header h1 { font-size: 1.25rem; margin: 0.15rem 0 0; font-weight: 600; }
-  main { max-width: 40rem; margin: 0 auto; padding: 1.5rem 1.5rem 2.5rem; }
+  body { margin: 0; padding: 2rem 1.5rem; font: 16px/1.5 "IBM Plex Sans", system-ui, sans-serif; color: #1f2937; background: #f7f7f5; }
+  main { max-width: 36rem; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
   p { margin: 0.5rem 0; }
-  .lead { color: var(--slate); }
-  .continue { display: none; margin: 1rem 0 1.5rem; padding: 1rem; border: 1px solid var(--line); background: #fff; }
-  .continue[data-on] { display: block; }
-  .continue a.button { display: inline-block; margin-top: 0.5rem; padding: 0.6rem 1rem; background: var(--navy); color: #fff; text-decoration: none; font-weight: 600; }
-  ol { list-style: none; padding: 0; margin: 1rem 0 0; }
-  li { border: 1px solid var(--line); background: #fff; padding: 0.9rem 1rem; margin: 0 0 0.6rem; }
-  li a.name { font-weight: 600; color: var(--link); text-decoration: none; font-size: 1.05rem; }
-  li a.name:hover { text-decoration: underline; }
-  li .what { display: block; color: var(--slate); font-size: 0.9rem; }
-  li code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.85rem; color: var(--ink); }
-  small { color: var(--slate); }
+  a { color: #0b3d91; }
+  small { color: #6b7280; }
 </style>
 </head>
 <body>
-<header>
-  <div class="inst">Indian Institute of Technology Mandi</div>
-  <h1>Faculty Leave Portal</h1>
-</header>
 <main>
-  <p class="lead">One portal, four interfaces, all on the same records and the same rules. Open the one you use; the address below follows the Pi wherever the network puts it.</p>
-
-  <div class="continue" id="continue">
-    <div>Last time you opened <strong id="continue-name"></strong>.</div>
-    <a class="button" id="continue-link" href="#">Open it again</a>
-  </div>
-
-  <ol id="list">
-    <li data-key="register"><a class="name" href="https://172.16.5.127:4010/">The Register</a><span class="what">The interface as designed. Port 4010.</span><code>https://172.16.5.127:4010/</code></li>
-    <li data-key="year"><a class="name" href="https://172.16.5.127:4011/">1 &middot; The Year in View</a><span class="what">The year as a strip, the balances as a ledger. Port 4011.</span><code>https://172.16.5.127:4011/</code></li>
-    <li data-key="kamand"><a class="name" href="https://172.16.5.127:4012/">2 &middot; Kamand</a><span class="what">Solid bands and the campus palette. Port 4012.</span><code>https://172.16.5.127:4012/</code></li>
-    <li data-key="docket"><a class="name" href="https://172.16.5.127:4013/">3 &middot; The Docket</a><span class="what">Paper, rules and an ink sign-in panel. Port 4013.</span><code>https://172.16.5.127:4013/</code></li>
-  </ol>
-
-  <p><small>Works from the institute network only. Address published 2026-09-17 14:12 UTC. Direct links: /register/, /1/, /2/, /3/.</small></p>
+  <h1>Faculty Leave Portal, IIT Mandi</h1>
+  <p>Taking you to <a href="https://172.16.5.127:4011/">https://172.16.5.127:4011/</a>.</p>
+  <p><small>The portal runs on the institute network; the link works from the campus WiFi only. Address published 2026-09-19 14:21 UTC.</small></p>
 </main>
-<script>
-(function () {
-  var KEY = 'flp.lastOpened';
-  var list = document.getElementById('list');
-  var items = list.querySelectorAll('li');
-  function remember(key) { try { localStorage.setItem(KEY, key); } catch (e) {} }
-  function recall() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
-  for (var i = 0; i < items.length; i++) {
-    (function (item) {
-      item.querySelector('a.name').addEventListener('click', function () { remember(item.getAttribute('data-key')); });
-    })(items[i]);
-  }
-  var last = recall();
-  if (!last) return;
-  for (var j = 0; j < items.length; j++) {
-    if (items[j].getAttribute('data-key') !== last) continue;
-    var link = items[j].querySelector('a.name');
-    document.getElementById('continue-name').textContent = link.textContent;
-    var button = document.getElementById('continue-link');
-    button.href = link.href;
-    button.addEventListener('click', function () { remember(last); });
-    document.getElementById('continue').setAttribute('data-on', '');
-  }
-})();
-</script>
+<script>window.location.replace('https://172.16.5.127:4011/');</script>
 </body>
 </html>
